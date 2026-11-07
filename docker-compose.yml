@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: logistics_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-deals_bigdata}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./sql/synthetic.sql:/docker-entrypoint-initdb.d/02_synthetic.sql:ro
+      - ./sql/ddl:/docker-entrypoint-initdb.d/03_ddl:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-deals_bigdata}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 120s   
+
+  etl:
+    build: .
+    container_name: logistics_etl
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-deals_bigdata}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      ETL_START_DATE: ${ETL_START_DATE:-2023-10-01}
+      ETL_END_DATE: ${ETL_END_DATE:-2026-10-26}
+      AS_OF: ${AS_OF:-2026-10-26}
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: ["python", "-m", "etl.run", "--start-date", "${ETL_START_DATE}", "--end-date", "${ETL_END_DATE}"]
+
+volumes:
+  pgdata:
