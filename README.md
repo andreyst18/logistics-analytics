@@ -1,1 +1,3 @@
-# logistics-analytics
+# Logistics Analytics
+
+Аналитический сервис рыночных ставок и прогнозирования тарифов.
